@@ -1,0 +1,270 @@
+# Superstore Sales Advanced EDA Notebook
+#
+# This notebook is a comprehensive guide to analyzing a Superstore sales dataset.
+# It covers key steps from data loading and cleaning to advanced visualization and
+# profitability analysis. The goal is to transform raw sales data into actionable
+# business insights for a retail client.
+#
+
+# 1. Import necessary libraries
+# We'll use pandas for data manipulation, numpy for numerical operations,
+# and matplotlib/seaborn for data visualization.
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Set a clean and professional visual style for all the plots.
+sns.set_style("whitegrid")
+plt.style.use("seaborn-v0_8-whitegrid")
+
+# 2. Load the dataset
+# This block attempts to load the dataset from a CSV file.
+# In a real-world scenario, you would ensure the file is in the correct path.
+# For this demonstration, a synthetic dataset is created if the file is not found.
+try:
+    df = pd.read_csv('Superstore_Sales_Data.csv')
+    print("Dataset loaded successfully!")
+except FileNotFoundError:
+    print("Error: 'Superstore_Sales_Data.csv' not found. Creating a synthetic dataset for demonstration.")
+    np.random.seed(42)
+    data_size = 5000
+    
+    # Define realistic categorical data for the synthetic dataset
+    categories = ['Furniture', 'Office Supplies', 'Technology']
+    sub_categories = {
+        'Furniture': ['Chairs', 'Tables', 'Bookcases'],
+        'Office Supplies': ['Storage', 'Paper', 'Art'],
+        'Technology': ['Phones', 'Copiers', 'Machines']
+    }
+    regions = ['East', 'West', 'Central', 'South']
+    segments = ['Consumer', 'Corporate', 'Home Office']
+    ship_modes = ['Standard Class', 'Second Class', 'First Class', 'Same Day']
+    
+    # Generate random data
+    row_id = np.arange(1, data_size + 1)
+    order_date = pd.to_datetime(np.random.uniform(pd.to_datetime('2021-01-01').timestamp(), pd.to_datetime('2024-12-31').timestamp(), data_size), unit='s')
+    ship_date = order_date + pd.to_timedelta(np.random.randint(1, 7, data_size), unit='d')
+    ship_mode = np.random.choice(ship_modes, data_size)
+    
+    category = np.random.choice(categories, data_size)
+    sub_category = [np.random.choice(sub_categories[c]) for c in category]
+    region = np.random.choice(regions, data_size)
+    segment = np.random.choice(segments, data_size)
+    
+    # Generate numerical data with some realistic relationships
+    sales = np.random.uniform(10, 5000, data_size)
+    quantity = np.random.randint(1, 15, data_size)
+
+    # Create the DataFrame
+    df = pd.DataFrame({
+        'Row ID': row_id,
+        'Order Date': order_date,
+        'Ship Date': ship_date,
+        'Ship Mode': ship_mode,
+        'Category': category,
+        'Sub-Category': sub_category,
+        'Region': region,
+        'Segment': segment,
+        'Sales': sales,
+        'Quantity': quantity,
+    })
+    
+# 3. Initial Data Inspection (The first step of EDA)
+# This step is crucial for understanding the dataset's structure and quality.
+print("\n--- Initial Data Inspection ---")
+print(f"Dataset has {df.shape[0]} rows and {df.shape[1]} columns.")
+print("\nFirst 5 rows of the dataset:")
+print(df.head())
+
+print("\n--- Data Info and Types ---")
+df.info()
+
+print("\n--- Summary Statistics ---")
+print(df.describe())
+
+# 4. Data Preprocessing and Cleaning
+# This is a critical step to prepare the data for accurate analysis.
+print("\n--- Data Preprocessing and Feature Engineering ---")
+
+# Step 4a: Handle Missing Values
+# We're filling missing 'Postal Code' values and converting the column to a string.
+# This ensures data integrity and prevents errors in later operations.
+df['Postal Code'].fillna('00000', inplace=True)
+df['Postal Code'] = df['Postal Code'].astype(str)
+print("\nMissing values in 'Postal Code' have been filled and converted to a string.")
+
+
+# Step 4b: Convert Date Columns to a proper datetime format
+# This conversion enables time-series analysis for trends and seasonality.
+df['Order Date'] = pd.to_datetime(df['Order Date'], format='%d/%m/%Y')
+df['Ship Date'] = pd.to_datetime(df['Ship Date'], format='%d/%m/%Y')
+print("\n'Order Date' and 'Ship Date' columns have been converted to datetime type.")
+
+# Step 4c: Feature Engineering - Creating new features from existing ones
+# We create new, business-relevant features to enrich the dataset.
+# 'Shipping_Duration' helps analyze operational efficiency.
+df['Shipping_Duration'] = (df['Ship Date'] - df['Order Date']).dt.days
+print(f"\nCreated 'Shipping_Duration' column. Here are the first 5 values:")
+print(df['Shipping_Duration'].head())
+
+# 'Order_Year' and 'Order_Month' are extracted for time-series trend analysis.
+df['Order_Year'] = df['Order Date'].dt.year
+df['Order_Month'] = df['Order Date'].dt.month
+print(f"\nCreated 'Order_Year' and 'Order_Month' columns.")
+
+# Let's inspect the data again to see the new columns
+print("\n--- Updated Data Info ---")
+df.info()
+
+# 5. Basic Visualization (A key part of EDA)
+# Visualizations help us quickly identify patterns and anomalies.
+print("\n--- Data Visualization ---")
+
+# Sales distribution histogram to understand the spread of sales values.
+plt.figure(figsize=(10, 6))
+sns.histplot(df['Sales'], bins=50, kde=True, color='purple')
+plt.title('Distribution of Sales', fontsize=16)
+plt.xlabel('Sales ($)', fontsize=12)
+plt.ylabel('Frequency', fontsize=12)
+plt.show()
+
+# Bar chart of sales by product category to find the top revenue drivers.
+plt.figure(figsize=(10, 6))
+sns.barplot(x='Category', y='Sales', data=df, estimator=sum, errorbar=None, palette='viridis')
+plt.title('Total Sales by Product Category', fontsize=16)
+plt.xlabel('Category', fontsize=12)
+plt.ylabel('Total Sales ($)', fontsize=12)
+plt.show()
+
+print("\n\n--- Advanced EDA & Business-Oriented Visualizations ---")
+
+# Step 5a: Time-Series Analysis - Sales Trend over Time
+# This line plot reveals the overall business growth and seasonal patterns.
+monthly_sales = df.groupby(['Order_Year', 'Order_Month'])['Sales'].sum().reset_index()
+monthly_sales['Order_Date'] = pd.to_datetime(monthly_sales['Order_Year'].astype(str) + '-' + monthly_sales['Order_Month'].astype(str))
+monthly_sales = monthly_sales.sort_values('Order_Date')
+
+plt.figure(figsize=(14, 7))
+sns.lineplot(x='Order_Date', y='Sales', data=monthly_sales, marker='o', color='blue')
+plt.title('Monthly Sales Trend', fontsize=18)
+plt.xlabel('Date', fontsize=12)
+plt.ylabel('Total Sales ($)', fontsize=12)
+plt.xticks(rotation=45)
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+# Step 5b: Geographical Analysis - Sales by Region
+# Bar plot to compare sales performance across different geographical regions.
+plt.figure(figsize=(10, 6))
+sns.barplot(x='Region', y='Sales', data=df, estimator=sum, errorbar=None, palette='mako')
+plt.title('Total Sales by Region', fontsize=16)
+plt.xlabel('Region', fontsize=12)
+plt.ylabel('Total Sales ($)', fontsize=12)
+plt.show()
+
+# Step 5c: Product Performance - Sales by Sub-Category
+# This plot is sorted to easily identify the top and bottom selling products.
+subcategory_sales = df.groupby('Sub-Category')['Sales'].sum().sort_values(ascending=False).reset_index()
+
+plt.figure(figsize=(12, 8))
+sns.barplot(x='Sales', y='Sub-Category', data=subcategory_sales, palette='rocket')
+plt.title('Total Sales by Sub-Category (Top to Bottom)', fontsize=16)
+plt.xlabel('Total Sales ($)', fontsize=12)
+plt.ylabel('Sub-Category', fontsize=12)
+plt.tight_layout()
+plt.show()
+
+# Step 5d: Advanced Analysis - Regional Product Performance
+# This grouped bar chart allows a detailed comparison of top products across regions.
+print("\n--- Advanced Analysis: Regional Product Performance ---")
+top_10_subcategories = df.groupby('Sub-Category')['Sales'].sum().nlargest(10).index
+print(f"Top 10 overall best-selling sub-categories: {list(top_10_subcategories)}")
+df_top_products = df[df['Sub-Category'].isin(top_10_subcategories)]
+
+plt.figure(figsize=(16, 10))
+sns.barplot(
+    x='Sub-Category',
+    y='Sales',
+    hue='Region',
+    data=df_top_products,
+    estimator=sum,
+    palette='deep',
+    order=top_10_subcategories
+)
+plt.title('Sales of Top 10 Products by Region', fontsize=18)
+plt.xlabel('Sub-Category', fontsize=12)
+plt.ylabel('Total Sales ($)', fontsize=12)
+plt.xticks(rotation=45, ha='right')
+plt.legend(title='Region')
+plt.tight_layout()
+plt.show()
+
+print("\n--- Sales by Top 10 Products and Region (Numeric Values) ---")
+sales_pivot_table = df_top_products.groupby(['Region', 'Sub-Category'])['Sales'].sum().unstack(level=0)
+print(sales_pivot_table.round(2))
+
+
+# NEW ANALYSIS: Customer Segment Performance
+print("\n\n--- NEW ANALYSIS: Customer Segment Performance ---")
+
+# Step 6a: High-Level Sales by Segment
+# We visualize total sales to understand which customer segments are most valuable.
+segment_sales = df.groupby('Segment')['Sales'].sum().sort_values(ascending=False).reset_index()
+
+plt.figure(figsize=(10, 6))
+sns.barplot(x='Segment', y='Sales', data=segment_sales, palette='Paired')
+plt.title('Total Sales by Customer Segment', fontsize=16)
+plt.xlabel('Customer Segment', fontsize=12)
+plt.ylabel('Total Sales ($)', fontsize=12)
+plt.show()
+
+print("\n--- Total Sales by Customer Segment (Numeric Values) ---")
+print(segment_sales)
+
+
+# Step 6b: Sales of Top Products by Customer Segment
+# This chart provides a detailed view of product performance within each customer segment.
+segment_product_sales = df_top_products.groupby(['Segment', 'Sub-Category'])['Sales'].sum().unstack(level=0)
+
+segment_product_sales.plot(kind='bar', figsize=(16, 10), cmap='viridis')
+plt.title('Sales of Top 10 Products by Customer Segment', fontsize=18)
+plt.xlabel('Sub-Category', fontsize=12)
+plt.ylabel('Total Sales ($)', fontsize=12)
+plt.xticks(rotation=45, ha='right')
+plt.legend(title='Segment')
+plt.tight_layout()
+plt.show()
+
+print("\n--- Sales of Top 10 Products by Customer Segment (Numeric Values) ---")
+print(segment_product_sales.round(2))
+
+# NEW ANALYSIS: Profitability Analysis (Simulated)
+# This is a crucial analysis to provide business value when profit data is missing.
+print("\n\n--- NEW ANALYSIS: Profitability Analysis (Simulated) ---")
+
+# Step 7a: Simulate a Profit Column
+# We make a clear assumption to simulate a profit metric.
+assumed_profit_margin = 0.25
+df['Simulated Profit'] = df['Sales'] * assumed_profit_margin
+print(f"\nCreated 'Simulated Profit' column based on a {assumed_profit_margin*100}% margin assumption.")
+print(f"Here are the first 5 values:")
+print(df[['Sales', 'Simulated Profit']].head())
+
+# Step 7b: Profitability by Sub-Category
+# This bar chart provides the core profitability insight for the client.
+subcategory_profit = df.groupby('Sub-Category')['Simulated Profit'].sum().sort_values(ascending=False).reset_index()
+
+plt.figure(figsize=(12, 8))
+sns.barplot(x='Simulated Profit', y='Sub-Category', data=subcategory_profit, palette='magma')
+plt.title('Simulated Profit by Sub-Category', fontsize=16)
+plt.xlabel('Simulated Profit ($)', fontsize=12)
+plt.ylabel('Sub-Category', fontsize=12)
+plt.tight_layout()
+plt.show()
+
+print("\n--- Simulated Profit by Sub-Category (Numeric Values) ---")
+print(subcategory_profit)
+
+print("\nNotebook completed. You've performed a comprehensive EDA.")
