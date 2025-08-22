@@ -1,5 +1,6 @@
 # Superstore_Sales_Analysis
 Superstore Sales Data Analysis
+
 Project Overview
 This repository contains a data analysis case study focused on uncovering business insights from a Superstore sales dataset. The project demonstrates the full data analysis lifecycle, from initial data cleaning and preprocessing to advanced exploratory data analysis (EDA) and business-oriented visualizations.
 
